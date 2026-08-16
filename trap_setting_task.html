@@ -7,8 +7,9 @@
   <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <style>
-    * { image-rendering: pixelated; }
+    * { image-rendering: pixelated; box-sizing: border-box; }
     body {
       background-color: #4a3410;
       background-image:
@@ -17,6 +18,9 @@
       background-size: 16px 16px;
       transition: background-color 0.8s;
       font-family: "Press Start 2P", monospace;
+      margin: 0;
+      padding: 12px 10px 40px 10px;
+      overflow-x: hidden;
     }
     body.twilight {
       background-color: #2a1a4a;
@@ -50,12 +54,40 @@
     }
     .trap-slot { opacity: 0.25; transition: opacity 0.2s; }
     .trap-slot.placed { opacity: 1; }
-    #field-box {
+    #field-wrap {
       position: relative;
+      width: 100%;
+      max-width: 520px;
+      margin: 16px auto;
+      overflow: hidden;
+    }
+    #field-box {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 520px;
       height: 520px;
-      margin: 16px auto;
       cursor: crosshair;
+      transform-origin: top left;
+    }
+    #end-game-btn {
+      display: block;
+      margin: 14px auto 0 auto;
+      font-family: "Press Start 2P", monospace;
+      font-size: 10px;
+      padding: 10px 16px;
+      border: 3px solid #000;
+      box-shadow: 3px 3px 0 0 #000;
+      background: #ff5e5e;
+      color: #000;
+      cursor: pointer;
+      border-radius: 0;
+    }
+    @media (max-width: 480px) {
+      h1.title { font-size: 13px; }
+      #scoreboard { font-size: 8px; }
+      .story-box { font-size: 11px; padding: 16px 16px; }
+      .story-box h2 { font-size: 14px; }
     }
     .trap-icon {
       position: absolute;
@@ -152,15 +184,6 @@
     body.twilight #phase-banner {
       background: #1a1030;
       color: #f4c76b;
-    }
-    #end-hint {
-      position: fixed;
-      bottom: 10px;
-      right: 14px;
-      color: #ffe9b3;
-      font-size: 9px;
-      z-index: 1000;
-      text-shadow: 2px 2px 0 #000;
     }
     .hist-bar-wrap {
       display: flex;
@@ -717,6 +740,18 @@ function downloadCSV() {
   URL.revokeObjectURL(url);
 }
 
+// ---------- responsive field scaling ----------
+function fitFieldToScreen(boxSize) {
+  const wrap = document.getElementById('field-wrap');
+  const box = document.getElementById('field-box');
+  if (!wrap || !box) return;
+  const available = Math.min(wrap.clientWidth, boxSize);
+  const scale = available / boxSize;
+  box.style.transform = `scale(${scale})`;
+  wrap.style.height = `${boxSize * scale}px`;
+}
+window.addEventListener('resize', () => fitFieldToScreen(520));
+
 // ---------- global state ----------
 let jsPsychInstance;
 let lastSessionDist = null;
@@ -731,18 +766,23 @@ function startTask() {
     <h1 class="title">🪤 Bard's Twilight Hunt 🐇</h1>
     <div id="scoreboard"></div>
     <div id="trap-tray"></div>
-    <div id="field-box">
-      ${buildFieldSVG()}
-      <div id="phase-banner">☀️ Daytime: set your traps</div>
-      <div id="result-banner"></div>
+    <div id="field-wrap">
+      <div id="field-box">
+        ${buildFieldSVG()}
+        <div id="phase-banner">☀️ Daytime: set your traps</div>
+        <div id="result-banner"></div>
+      </div>
     </div>
+    <button id="end-game-btn">🏁 End Game &amp; See Results</button>
   `;
+  fitFieldToScreen(520);
 
   const fieldBox = display.querySelector('#field-box');
   const scoreboard = display.querySelector('#scoreboard');
   const trapTray = display.querySelector('#trap-tray');
   const phaseBanner = display.querySelector('#phase-banner');
   const resultBanner = display.querySelector('#result-banner');
+  const endGameBtn = display.querySelector('#end-game-btn');
 
   const sessionDist = makeSessionDist();
   lastSessionDist = sessionDist;
@@ -801,8 +841,9 @@ function startTask() {
   function onFieldClick(evt) {
     if (phase !== 'day') return;
     const rect = fieldBox.getBoundingClientRect();
-    const x = evt.clientX - rect.left;
-    const y = evt.clientY - rect.top;
+    const scaleFactor = rect.width / 520;
+    const x = (evt.clientX - rect.left) / scaleFactor;
+    const y = (evt.clientY - rect.top) / scaleFactor;
     const dx = x - CENTER, dy = y - CENTER;
     if (Math.sqrt(dx * dx + dy * dy) > FIELD_RADIUS) return; // must click inside the meadow
 
@@ -921,6 +962,7 @@ function startTask() {
   function cleanupListeners() {
     fieldBox.removeEventListener('click', onFieldClick);
     document.removeEventListener('keydown', onKeydown);
+    endGameBtn.removeEventListener('click', onEndGameClick);
   }
 
   const onKeydown = (evt) => {
@@ -930,8 +972,14 @@ function startTask() {
     }
   };
 
+  const onEndGameClick = () => {
+    cleanupListeners();
+    showAnalysisScreen();
+  };
+
   fieldBox.addEventListener('click', onFieldClick);
   document.addEventListener('keydown', onKeydown);
+  endGameBtn.addEventListener('click', onEndGameClick);
 
   renderTrapTray();
   updateScoreboard();
@@ -1146,11 +1194,6 @@ const jsPsych = initJsPsych({
 });
 jsPsychInstance = jsPsych;
 
-document.body.insertAdjacentHTML(
-  'beforeend',
-  '<div id="end-hint">Press ESC at any time to end the task and see your results</div>'
-);
-
 const instructions = {
   type: jsPsychHtmlKeyboardResponse,
   choices: 'NO_KEYS',
@@ -1162,7 +1205,7 @@ const instructions = {
       rabbits pop up one by one &mdash; any near a trap get caught.</p>
       <p>Rabbits favor certain spots round after round. Watch where you
       catch (and miss) to place traps better next time.</p>
-      <p style="color:#e0c896;">Press <b>ESC</b> any time to end and see
+      <p style="color:#e0c896;">Tap "End Game" any time to end and see
       your report.</p>
 
       <p style="font-weight:bold; margin-top:18px; margin-bottom:10px; color:#ffd700;">

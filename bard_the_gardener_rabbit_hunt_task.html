@@ -5,29 +5,40 @@
   <script src="https://unpkg.com/jspsych@8.2.2"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
   <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
+    * { image-rendering: pixelated; }
     body {
-      background: linear-gradient(#8fd3ff, #bfe9c9);
+      background-color: #123c1c;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 16px 16px;
+      font-family: "Press Start 2P", monospace;
     }
-    .jspsych-display-element { color: #1a2e1a; }
+    .jspsych-display-element { color: #d9f7d9; }
     h1.title {
       text-align: center;
-      font-size: 26px;
+      font-size: 20px;
+      line-height: 1.6;
       margin-bottom: 0;
-      color: #2d4a2d;
+      color: #ffd700;
+      text-shadow: 3px 3px 0 #000;
     }
     #scoreboard {
       text-align: center;
-      font-size: 17px;
-      margin-top: 8px;
-      color: #2d4a2d;
-      font-weight: 600;
+      font-size: 10px;
+      line-height: 1.8;
+      margin-top: 14px;
+      color: #7cff8a;
+      text-shadow: 2px 2px 0 #000;
     }
     #bomb-tray {
       display: flex;
       justify-content: center;
       gap: 4px;
-      margin-top: 6px;
+      margin-top: 10px;
       font-size: 20px;
     }
     .bomb-slot { opacity: 1; transition: opacity 0.2s; }
@@ -65,25 +76,26 @@
     }
     .callout-text {
       position: absolute;
-      font-size: 18px;
-      font-weight: bold;
+      font-size: 11px;
       pointer-events: none;
       white-space: nowrap;
       transform: translate(-50%, -50%);
       transition: opacity 0.7s, transform 0.7s;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      text-shadow: 2px 2px 0 #000;
+      font-family: "Press Start 2P", monospace;
     }
     #bomb-refill-banner {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(30, 20, 10, 0.85);
+      background: #1a1a2e;
+      border: 3px solid #000;
+      box-shadow: 0 0 0 3px #ffd700, 6px 6px 0 0 #000;
       color: #ffd27a;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-size: 17px;
-      font-weight: bold;
+      padding: 14px 20px;
+      font-size: 11px;
+      line-height: 1.6;
       opacity: 0;
       transition: opacity 0.4s;
       pointer-events: none;
@@ -95,9 +107,10 @@
       position: fixed;
       bottom: 10px;
       right: 14px;
-      color: #2d4a2d;
-      font-size: 12px;
+      color: #7cff8a;
+      font-size: 9px;
       z-index: 1000;
+      text-shadow: 2px 2px 0 #000;
     }
     .hist-bar-wrap {
       display: flex;
@@ -110,11 +123,11 @@
     .hist-bar {
       width: 28px;
       background: #4caf50;
-      border-radius: 3px 3px 0 0;
+      border: 2px solid #000;
     }
     .hist-label {
-      font-size: 10px;
-      color: #2d4a2d;
+      font-size: 9px;
+      color: #d9f7d9;
       text-align: center;
       width: 28px;
     }
@@ -124,14 +137,14 @@
       flex-wrap: wrap;
       gap: 20px;
       margin-top: 10px;
-      font-size: 13px;
-      color: #2d4a2d;
+      font-size: 9px;
+      color: #d9f7d9;
     }
     .legend-dot {
       display: inline-block;
       width: 10px;
       height: 10px;
-      border-radius: 50%;
+      border: 2px solid #000;
       margin-right: 6px;
       vertical-align: middle;
     }
@@ -139,9 +152,20 @@
       max-width: 620px;
       margin: 0 auto;
       text-align: left;
-      background: rgba(255,255,255,0.6);
-      padding: 18px 24px;
-      border-radius: 12px;
+      background: #1e4d28;
+      border: 4px solid #000;
+      box-shadow: 0 0 0 4px #ffd700, 8px 8px 0 0 #000;
+      padding: 20px 24px;
+      font-size: 10px;
+      line-height: 1.9;
+      color: #e8ffe8;
+    }
+    .story-box h2 { font-size: 13px; line-height: 1.8; color: #ffd700; text-shadow: 2px 2px 0 #000; }
+    .story-box button {
+      font-family: "Press Start 2P", monospace;
+      border-radius: 0 !important;
+      border: 3px solid #000 !important;
+      box-shadow: 4px 4px 0 0 #000;
     }
   </style>
 </head>
@@ -423,7 +447,7 @@ function buildDistributionChart(distParams, angles, barColor, chartWidth = 720, 
     .join(' ');
 
   return `
-    <svg width="${CH_W}" height="${CH_H}" style="background:#eaf5e6; border:1px solid #8fbf8f; border-radius:6px;">
+    <svg width="${CH_W}" height="${CH_H}" style="background:#0d2818; border:3px solid #000;">
       ${bars}
       <polyline points="${linePts}" fill="none" stroke="#2d4a2d" stroke-width="2" />
     </svg>
@@ -482,7 +506,7 @@ function buildTrendChart(valuesArr, dotColor) {
   return {
     windowSize,
     svg: `
-    <svg width="${CH_W}" height="${CH_H}" style="background:#eaf5e6; border:1px solid #8fbf8f; border-radius:6px;">
+    <svg width="${CH_W}" height="${CH_H}" style="background:#0d2818; border:3px solid #000;">
       ${yAxis}
       <polyline points="${rawPts}" fill="none" stroke="${dotColor}" stroke-width="1.5" opacity="0.5" />
       ${dots}
@@ -1014,7 +1038,7 @@ function showAnalysisScreen() {
 
       <p style="font-size:12px; margin-top:20px; color:#4a6a4a;">
         Your data has been downloaded automatically as a CSV.
-        <button id="redownload-btn" style="margin-left:8px; padding:4px 10px; border-radius:6px; border:none; background:#4caf50; color:white; cursor:pointer;">
+        <button id="redownload-btn" style="margin-left:8px; padding:6px 10px; font-family:'Press Start 2P', monospace; font-size:9px; border-radius:0; border:3px solid #000; box-shadow:3px 3px 0 0 #000; background:#ffd700; color:#000; cursor:pointer;">
           Download again
         </button>
       </p>
@@ -1065,14 +1089,14 @@ const instructions = {
       favorite spots in the garden, though you won't know what they are
       until the end.</p>
       <p>Try to catch each rabbit using as few bombs as possible.</p>
-      <p style="color:#555;">You can press <b>ESC</b> at any time to end
+      <p style="color:#9fd8a8;">You can press <b>ESC</b> at any time to end
       the hunt and see Bard's report.</p>
 
-      <p style="font-weight:bold; margin-top:18px; margin-bottom:6px;">
+      <p style="font-weight:bold; margin-top:18px; margin-bottom:10px; color:#ffd700;">
         Choose which kinds of hiding-spot distributions the rabbit might use
         (pick one or more):
       </p>
-      <div id="dist-checkboxes" style="display:flex; flex-wrap:wrap; gap:14px;">
+      <div id="dist-checkboxes" style="display:flex; flex-wrap:wrap; gap:14px; font-size:9px;">
         ${DIST_CHOICE_ORDER.map(
           (key) => `
           <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
@@ -1082,11 +1106,11 @@ const instructions = {
         `
         ).join('')}
       </div>
-      <p id="dist-error" style="color:#c0392b; font-size:12px; display:none; margin-top:6px;">
+      <p id="dist-error" style="color:#ff5e5e; font-size:9px; display:none; margin-top:10px;">
         Select at least one distribution type.
       </p>
-      <button id="start-hunt-btn" style="margin-top:14px; padding:10px 24px; font-size:16px;
-        border-radius:8px; border:none; background:#4caf50; color:white; cursor:pointer;">
+      <button id="start-hunt-btn" style="margin-top:16px; padding:12px 24px; font-size:11px;
+        border-radius:0; border:3px solid #000; box-shadow:4px 4px 0 0 #000; background:#ffd700; color:#000; cursor:pointer;">
         Start the Hunt
       </button>
     </div>

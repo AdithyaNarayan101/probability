@@ -320,6 +320,19 @@ const DIST_MAKERS = {
     const alpha = Math.random() < 0.5 ? -magnitude : magnitude;
     return { type: 'skewed', mean, std, alpha };
   },
+  // uniform over a range, but with an elevated "hotspot" bump somewhere
+  // inside that range -- mostly flat, with one peak
+  peaked: () => {
+    const rangeCenter = Math.random() * 360;
+    const rangeHalfWidth = 40 + Math.random() * 40; // range width 80-160 deg
+    const low = rangeCenter - rangeHalfWidth;
+    const high = rangeCenter + rangeHalfWidth;
+    const peakOffset = (Math.random() * 2 - 1) * rangeHalfWidth * 0.6;
+    const peakLocation = wrapAngle(rangeCenter + peakOffset);
+    const peakStd = 8 + Math.random() * 10;
+    const peakWeight = 0.4 + Math.random() * 0.3;
+    return { type: 'peaked', low, high, peakLocation, peakStd, peakWeight };
+  },
 };
 
 const DIST_LABELS = {
@@ -328,10 +341,14 @@ const DIST_LABELS = {
   bimodal: 'Bimodal',
   multimodal: 'Multimodal',
   skewed: 'Skewed',
+  peaked: 'Peaked (uniform + hotspot)',
 };
 
+const DIST_CHOICE_ORDER = ['gaussian', 'uniform', 'bimodal', 'multimodal', 'skewed', 'peaked'];
+let allowedDistTypes = Object.keys(DIST_MAKERS);
+
 function makeSessionDist() {
-  const keys = Object.keys(DIST_MAKERS);
+  const keys = allowedDistTypes && allowedDistTypes.length > 0 ? allowedDistTypes : Object.keys(DIST_MAKERS);
   const key = keys[Math.floor(Math.random() * keys.length)];
   return DIST_MAKERS[key]();
 }
@@ -350,6 +367,12 @@ function drawFromDist(distParams) {
     }
     case 'skewed':
       return wrapAngle(skewNormalRandom(distParams.mean, distParams.std, distParams.alpha));
+    case 'peaked': {
+      if (Math.random() < distParams.peakWeight) {
+        return wrapAngle(gaussianRandom(distParams.peakLocation, distParams.peakStd));
+      }
+      return wrapAngle(distParams.low + Math.random() * (distParams.high - distParams.low));
+    }
     default:
       return Math.random() * 360;
   }
@@ -369,6 +392,9 @@ function marginalPDF(distParams, xWrapped) {
       });
     } else if (distParams.type === 'skewed') {
       total += skewNormalPDFraw(x, distParams.mean, distParams.std, distParams.alpha);
+    } else if (distParams.type === 'peaked') {
+      total += distParams.peakWeight * gaussianPDFraw(x, distParams.peakLocation, distParams.peakStd);
+      total += (1 - distParams.peakWeight) * uniformPDFraw(x, distParams.low, distParams.high);
     }
   }
   return total;

@@ -66,17 +66,12 @@
       40% { transform: translate(-50%, -50%) scale(1.4) rotate(-10deg); }
       70% { transform: translate(-50%, -50%) scale(1.4) rotate(10deg); }
     }
-    .trap-icon.inactive {
-      opacity: 0.35;
-      filter: brightness(0);
-    }
     .rabbit-icon {
       position: absolute;
       font-size: 30px;
       transform: translate(-50%, -50%);
       pointer-events: none;
       animation: rabbit-pop 0.3s ease-out;
-      filter: brightness(0);
     }
     @keyframes rabbit-pop {
       0% { transform: translate(-50%, -20%) scale(0.3); opacity: 0; }
@@ -850,8 +845,7 @@ function startTask() {
           nearestTrap.t.active = false;
           nearestTrap.t.el.classList.add('sprung');
           setTimeout(() => {
-            nearestTrap.t.el.classList.remove('sprung');
-            nearestTrap.t.el.classList.add('inactive');
+            nearestTrap.t.el.remove();
           }, 350);
         }
         showCallout(p, 'Caught!', '#f4c76b');

@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bard the Gardener: Rabbit Hunt (Block Experiment)</title>
+  <script src="https://unpkg.com/jspsych@8.2.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+  <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <style>
+    * { image-rendering: pixelated; box-sizing: border-box; }
+    body {
+      background-color: #123c1c;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 16px 16px;
+      font-family: "Press Start 2P", monospace;
+      margin: 0;
+      padding: 12px 10px 40px 10px;
+      overflow-x: hidden;
+    }
+    .jspsych-display-element { color: #d9f7d9; }
+    h1.title {
+      text-align: center; font-size: 16px; line-height: 1.6; margin: 0;
+      color: #ffd700; text-shadow: 3px 3px 0 #000;
+    }
+    #counter {
+      text-align: center; font-size: 12px; margin-top: 12px; color: #ffd27a;
+      text-shadow: 2px 2px 0 #000;
+    }
+    #progress-outer {
+      width: 100%; max-width: 520px; height: 14px; margin: 8px auto 0 auto;
+      background: #0d2818; border: 3px solid #000; box-shadow: 0 0 0 2px #ffd700;
+    }
+    #progress-inner { height: 100%; width: 0%; background: #7cff8a; transition: width 0.3s; }
+    #scoreboard {
+      text-align: center; font-size: 9px; line-height: 1.8; margin-top: 10px;
+      color: #7cff8a; text-shadow: 2px 2px 0 #000;
+    }
+    #rtc-status {
+      text-align: center; font-size: 9px; margin-top: 8px; min-height: 14px;
+      color: #ffd27a; text-shadow: 2px 2px 0 #000;
+    }
+    #rtc-status.ready { color: #7cff8a; }
+    #bomb-pile {
+      position: absolute; left: 260px; top: 260px; transform: translate(-50%, -50%);
+      font-size: 17px; line-height: 0.95; text-align: center; pointer-events: none;
+      white-space: pre; z-index: 5; transition: opacity 0.2s;
+    }
+    #bomb-pile.waiting { animation: pile-pulse 1s ease-in-out infinite; }
+    #bomb-pile.ready { opacity: 0.45; }
+    @keyframes pile-pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.12); }
+    }
+    #hold-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 4; }
+    /* ---------- trap-setting phase ---------- */
+    #trap-tray { display: flex; justify-content: center; gap: 4px; margin-top: 8px; font-size: 20px; min-height: 24px; }
+    .trap-slot { opacity: 0.25; }
+    .trap-slot.placed { opacity: 1; }
+    #twilight-overlay {
+      position: absolute; left: 30px; top: 30px; width: 460px; height: 460px; border-radius: 50%;
+      background: rgba(40, 20, 90, 0.55); opacity: 0; transition: opacity 0.8s;
+      pointer-events: none; z-index: 3;
+    }
+    #twilight-overlay.on { opacity: 1; }
+    #phase-banner {
+      position: absolute; top: 8px; left: 50%; transform: translate(-50%, 0);
+      background: #1a1200; border: 3px solid #000; box-shadow: 3px 3px 0 0 #000;
+      color: #ffe9b3; padding: 6px 14px; font-size: 10px; z-index: 20; white-space: nowrap;
+    }
+    #phase-banner.night { background: #1a1030; color: #f4c76b; }
+    .trap-icon {
+      position: absolute; font-size: 28px; transform: translate(-50%, -50%);
+      pointer-events: none; animation: trap-pop 0.25s ease-out; filter: brightness(0); z-index: 6;
+    }
+    @keyframes trap-pop {
+      0% { transform: translate(-50%, -70%) scale(0.4); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    .trap-icon.sprung { animation: trap-snap 0.35s ease-in-out; }
+    @keyframes trap-snap {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      40% { transform: translate(-50%, -50%) scale(1.4) rotate(-10deg); }
+      70% { transform: translate(-50%, -50%) scale(1.4) rotate(10deg); }
+    }
+    .rabbit-icon {
+      position: absolute; font-size: 30px; transform: translate(-50%, -50%);
+      pointer-events: none; animation: rabbit-pop 0.3s ease-out; z-index: 7;
+    }
+    @keyframes rabbit-pop {
+      0% { transform: translate(-50%, -20%) scale(0.3); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    .rabbit-icon.caught { animation: rabbit-shake 0.4s ease-in-out; }
+    @keyframes rabbit-shake {
+      0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+      25% { transform: translate(-50%, -50%) rotate(-16deg); }
+      75% { transform: translate(-50%, -50%) rotate(16deg); }
+    }
+    .poof-icon {
+      position: absolute; font-size: 30px; transform: translate(-50%, -50%) scale(0.4);
+      pointer-events: none; animation: poof 0.5s ease-out forwards; z-index: 7;
+    }
+    @keyframes poof {
+      0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+      100% { transform: translate(-50%, -80%) scale(1.3); opacity: 0; }
+    }
+    #field-wrap { position: relative; width: 100%; max-width: 520px; margin: 12px auto; overflow: hidden; }
+    #field-box {
+      position: absolute; top: 0; left: 0; width: 520px; height: 520px;
+      cursor: crosshair; transform-origin: top left;
+    }
+    .btn-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+    .pix-btn {
+      font-family: "Press Start 2P", monospace; font-size: 10px; padding: 10px 16px;
+      border: 3px solid #000; box-shadow: 3px 3px 0 0 #000; color: #000;
+      cursor: pointer; border-radius: 0;
+    }
+    .pix-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 0 #000; }
+    .btn-yellow { background: #ffd700; }
+    .btn-red { background: #ff5e5e; }
+    .btn-blue { background: #7ec8ff; }
+    #pause-overlay {
+      position: fixed; inset: 0; background: rgba(5, 20, 10, 0.94);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    #pause-overlay.show { display: flex; }
+    .bomb-icon {
+      position: absolute; font-size: 26px; transform: translate(-50%, -50%);
+      pointer-events: none; animation: bomb-drop 0.25s ease-out;
+    }
+    @keyframes bomb-drop {
+      0% { transform: translate(-50%, -80%) scale(0.4); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    .explosion-icon {
+      position: absolute; font-size: 40px; transform: translate(-50%, -50%) scale(0.3);
+      pointer-events: none; animation: boom 0.5s ease-out forwards;
+    }
+    @keyframes boom {
+      0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+      60% { transform: translate(-50%, -50%) scale(1.4); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1.7); opacity: 0; }
+    }
+    .callout-text {
+      position: absolute; font-size: 11px; pointer-events: none; white-space: nowrap;
+      transform: translate(-50%, -50%); transition: opacity 0.7s, transform 0.7s;
+      text-shadow: 2px 2px 0 #000; font-family: "Press Start 2P", monospace;
+    }
+    #banner {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: #1a1a2e; border: 3px solid #000; box-shadow: 0 0 0 3px #ffd700, 6px 6px 0 0 #000;
+      color: #ffd27a; padding: 14px 20px; font-size: 11px; line-height: 1.6;
+      opacity: 0; transition: opacity 0.4s; pointer-events: none; text-align: center; z-index: 20;
+    }
+    #banner.show { opacity: 1; }
+    .story-box {
+      max-width: 640px; margin: 0 auto; text-align: left; background: #1e4d28;
+      border: 4px solid #000; box-shadow: 0 0 0 4px #ffd700, 8px 8px 0 0 #000;
+      padding: 22px 26px; font-size: 12px; line-height: 2.1; color: #e8ffe8;
+    }
+    .story-box h2 { font-size: 16px; line-height: 1.8; color: #ffd700; text-shadow: 2px 2px 0 #000; margin-top: 0; }
+    .setup-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 9px; }
+    .setup-row input[type="text"], .setup-row input[type="number"] {
+      font-family: "Press Start 2P", monospace; font-size: 10px; padding: 6px 8px;
+      border: 3px solid #000; background: #e8ffe8; color: #000; width: 140px;
+    }
+    .setup-row input[type="number"] { width: 80px; }
+    .err { color: #ff5e5e; font-size: 9px; display: none; margin-top: 10px; }
+    table.report { border-collapse: collapse; margin: 12px auto; font-size: 9px; }
+    table.report th, table.report td { border: 2px solid #000; padding: 6px 8px; text-align: center; }
+    table.report th { background: #0d2818; color: #ffd700; }
+    .chart-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-top: 10px; }
+    .chart-cell { width: 330px; max-width: 100%; font-size: 9px; text-align: center; }
+    .chart-cell svg { width: 100%; height: auto; display: block; }
+    @media (max-width: 480px) {
+      h1.title { font-size: 12px; }
+      #counter { font-size: 10px; }
+      #scoreboard { font-size: 7px; }
+      .story-box { font-size: 10px; padding: 16px; }
+      .story-box h2 { font-size: 13px; }
+    }
+  </style>
+</head>
+<body></body>
+<script>
+
+// ====================================================================
+//  CONFIG
+// ====================================================================
+const CENTER = 260;
+const FIELD_RADIUS = 230;
+const PATH_RADIUS = FIELD_RADIUS - 40;
+const PATH_WIDTH = 26;
+
+const RABBIT_BURROW_ARC_DEG = 12;
+const BOMB_BLAST_TOLERANCE_DEG = 8;
+const HIT_TOLERANCE_DEG = RABBIT_BURROW_ARC_DEG / 2 + BOMB_BLAST_TOLERANCE_DEG;
+
+const DEFAULT_N_BLOCKS = 6;
+const DEFAULT_TRIALS_PER_BLOCK = 50;
+const TASK_VERSION = 'block-v3';
+
+// trap-setting phase run at the end of every block, using that block's
+// exact hiding-spot distribution
+const DEFAULT_TRAP_ROUNDS = 5;
+const N_TRAPS = 5;                 // traps set per round
+const N_TRAP_RABBITS = 5;          // rabbits that pop up per round
+
+// "return to center" variant: before every throw the cursor must rest on
+// the bomb pile in the middle of the garden for CENTER_HOLD_MS.
+const CENTER_ZONE_R = 34;     // logical px radius of the pile's hover zone
+const CENTER_HOLD_MS = 250;
+
+// ====================================================================
+//  GEOMETRY
+// ====================================================================
+function xyToAngle(x, y) {
+  let deg = (Math.atan2(x - CENTER, -(y - CENTER)) * 180) / Math.PI;
+  if (deg < 0) deg += 360;
+  return deg;
+}
+function angleToXY(angleDeg, radius) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return { x: CENTER + radius * Math.sin(rad), y: CENTER - radius * Math.cos(rad) };
+}
+function circularDist(a, b) {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+// signed difference a - b in (-180, 180]
+function signedDiff(a, b) {
+  let d = ((a - b) % 360 + 540) % 360 - 180;
+  return d === -180 ? 180 : d;
+}
+function wrapAngle(a) { return ((a % 360) + 360) % 360; }
+
+// ====================================================================
+//  RANDOM / PDF HELPERS
+// ====================================================================
+function gaussianRandom(mean, std) {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return mean + Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * std;
+}
+function erf(x) {
+  const sign = x < 0 ? -1 : 1;
+  x = Math.abs(x);
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741,
+        a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const t = 1 / (1 + p * x);
+  const y = 1 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return sign * y;
+}
+function stdNormalPDF(z) { return Math.exp((-z * z) / 2) / Math.sqrt(2 * Math.PI); }
+function stdNormalCDF(z) { return 0.5 * (1 + erf(z / Math.sqrt(2))); }
+function skewNormalRandom(mean, std, alpha) {
+  const delta = alpha / Math.sqrt(1 + alpha * alpha);
+  const u0 = gaussianRandom(0, 1);
+  const v = gaussianRandom(0, 1);
+  const u1 = delta * u0 + Math.sqrt(1 - delta * delta) * v;
+  return mean + std * (u0 >= 0 ? u1 : -u1);
+}
+function gaussianPDFraw(x, mean, std) { return stdNormalPDF((x - mean) / std) / std; }
+function skewNormalPDFraw(x, mean, std, alpha) {
+  const z = (x - mean) / std;
+  return (2 / std) * stdNormalPDF(z) * stdNormalCDF(alpha * z);
+}
+function uniformPDFraw(x, low, high) { return x >= low && x <= high ? 1 / (high - low) : 0; }
+function weightedChoice(weights) {
+  const r = Math.random();
+  let cum = 0;
+  for (let i = 0; i < weights.length; i++) { cum += weights[i]; if (r <= cum) return i; }
+  return weights.length - 1;
+}
+function sampleModes(numModes, minSepDeg) {
+  const modes = [];
+  let guard = 0;
+  while (modes.length < numModes && guard < 500) {
+    guard++;
+    const c = Math.random() * 360;
+    if (modes.every((m) => circularDist(m, c) >= minSepDeg)) modes.push(c);
+  }
+  while (modes.length < numModes) modes.push((360 / numModes) * modes.length);
+  return modes;
+}
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ====================================================================
+//  HIDING-SPOT DISTRIBUTIONS
+// ====================================================================
+const DIST_MAKERS = {
+  gaussian: () => ({ type: 'gaussian', mean: Math.random() * 360, std: 15 + Math.random() * 20 }),
+  uniform: () => {
+    const center = Math.random() * 360;
+    const halfWidth = 30 + Math.random() * 60;
+    return { type: 'uniform', low: center - halfWidth, high: center + halfWidth, center, halfWidth };
+  },
+  bimodal: () => {
+    const centers = sampleModes(2, 90);
+    const w1 = 0.35 + Math.random() * 0.3;
+    const weights = [w1, 1 - w1];
+    return { type: 'bimodal', modes: centers.map((mean, i) => ({ mean, std: 10 + Math.random() * 12, weight: weights[i] })) };
+  },
+  multimodal: () => {
+    const k = 3 + (Math.random() < 0.5 ? 0 : 1);
+    const centers = sampleModes(k, 55);
+    const raw = centers.map(() => 0.5 + Math.random());
+    const sumW = raw.reduce((a, b) => a + b, 0);
+    return { type: 'multimodal', modes: centers.map((mean, i) => ({ mean, std: 8 + Math.random() * 10, weight: raw[i] / sumW })) };
+  },
+  skewed: () => {
+    const magnitude = 3 + Math.random() * 4;
+    return {
+      type: 'skewed', mean: Math.random() * 360, std: 15 + Math.random() * 20,
+      alpha: Math.random() < 0.5 ? -magnitude : magnitude,
+    };
+  },
+  peaked: () => {
+    const rangeCenter = Math.random() * 360;
+    const rangeHalfWidth = 40 + Math.random() * 40;
+    const peakOffset = (Math.random() * 2 - 1) * rangeHalfWidth * 0.6;
+    return {
+      type: 'peaked', low: rangeCenter - rangeHalfWidth, high: rangeCenter + rangeHalfWidth,
+      peakLocation: wrapAngle(rangeCenter + peakOffset),
+      peakStd: 8 + Math.random() * 10, peakWeight: 0.4 + Math.random() * 0.3,
+    };
+  },
+};
+const DIST_LABELS = {
+  gaussian: 'Gaussian', uniform: 'Uniform', bimodal: 'Bimodal',
+  multimodal: 'Multimodal', skewed: 'Skewed', peaked: 'Peaked (uniform + hotspot)',
+};
+const DIST_CHOICE_ORDER = ['gaussian', 'uniform', 'bimodal', 'multimodal', 'skewed', 'peaked'];
+
+function drawFromDist(d) {
+  switch (d.type) {
+    case 'gaussian': return wrapAngle(gaussianRandom(d.mean, d.std));
+    case 'uniform': return wrapAngle(d.low + Math.random() * (d.high - d.low));
+    case 'bimodal':
+    case 'multimodal': {
+      const m = d.modes[weightedChoice(d.modes.map((mm) => mm.weight))];
+      return wrapAngle(gaussianRandom(m.mean, m.std));
+    }
+    case 'skewed': return wrapAngle(skewNormalRandom(d.mean, d.std, d.alpha));
+    case 'peaked':
+      if (Math.random() < d.peakWeight) return wrapAngle(gaussianRandom(d.peakLocation, d.peakStd));
+      return wrapAngle(d.low + Math.random() * (d.high - d.low));
+    default: return Math.random() * 360;
+  }
+}
+
+function marginalPDF(d, xWrapped) {
+  let total = 0;
+  for (let k = -1; k <= 1; k++) {
+    const x = xWrapped + 360 * k;
+    if (d.type === 'gaussian') total += gaussianPDFraw(x, d.mean, d.std);
+    else if (d.type === 'uniform') total += uniformPDFraw(x, d.low, d.high);
+    else if (d.type === 'bimodal' || d.type === 'multimodal')
+      d.modes.forEach((m) => { total += m.weight * gaussianPDFraw(x, m.mean, m.std); });
+    else if (d.type === 'skewed') total += skewNormalPDFraw(x, d.mean, d.std, d.alpha);
+    else if (d.type === 'peaked') {
+      total += d.peakWeight * gaussianPDFraw(x, d.peakLocation, d.peakStd);
+      total += (1 - d.peakWeight) * uniformPDFraw(x, d.low, d.high);
+    }
+  }
+  return total;
+}
+
+function getDistPeaks(d) {
+  if (!d) return [];
+  switch (d.type) {
+    case 'gaussian': return [wrapAngle(d.mean)];
+    case 'uniform': return [wrapAngle((d.low + d.high) / 2)];
+    case 'bimodal':
+    case 'multimodal': return d.modes.map((m) => wrapAngle(m.mean));
+    case 'peaked': return [d.peakLocation];
+    case 'skewed': {
+      let bestX = d.mean, bestD = -Infinity;
+      for (let x = 0; x < 360; x += 0.5) {
+        const v = marginalPDF(d, x);
+        if (v > bestD) { bestD = v; bestX = x; }
+      }
+      return [bestX];
+    }
+    default: return [];
+  }
+}
+function distanceToNearestPeak(angle, peaks) {
+  if (peaks.length === 0) return null;
+  return Math.min(...peaks.map((p) => circularDist(angle, p)));
+}
+
+// Build the block sequence: cycle through shuffled copies of the allowed
+// families so every family appears as evenly as possible, and avoid the
+// same family twice in a row when more than one family is allowed.
+// Each block gets freshly sampled parameters.
+function buildBlockSequence(nBlocks, allowed) {
+  const seq = [];
+  while (seq.length < nBlocks) {
+    let pass = shuffle(allowed);
+    if (seq.length > 0 && allowed.length > 1 && pass[0] === seq[seq.length - 1]) {
+      [pass[0], pass[pass.length - 1]] = [pass[pass.length - 1], pass[0]];
+    }
+    seq.push(...pass);
+  }
+  return seq.slice(0, nBlocks).map((type, i) => {
+    const dist = DIST_MAKERS[type]();
+    return { index: i + 1, dist, peaks: getDistPeaks(dist), trials: [], trapRounds: [], complete: false, saved: false };
+  });
+}
+
+// ====================================================================
+//  FIELD ART
+// ====================================================================
+const FIELD_SVG = (() => {
+  let tufts = '';
+  for (let i = 0; i < 160; i++) {
+    const r = PATH_RADIUS + (Math.random() - 0.5) * (PATH_WIDTH + 26);
+    const theta = Math.random() * Math.PI * 2;
+    const x = CENTER + r * Math.cos(theta);
+    const y = CENTER + r * Math.sin(theta);
+    const h = 6 + Math.random() * 8;
+    const lean = (Math.random() - 0.5) * 6;
+    const shade = 30 + Math.floor(Math.random() * 30);
+    tufts += `<path d="M${x},${y} q${lean},-${h / 2} ${lean * 1.5},-${h}"
+      stroke="hsl(100, 45%, ${shade}%)" stroke-width="2" fill="none" stroke-linecap="round" />`;
+  }
+  return `
+    <svg width="520" height="520" style="position:absolute; top:0; left:0;">
+      <defs>
+        <radialGradient id="grassGrad" cx="50%" cy="45%" r="65%">
+          <stop offset="0%" stop-color="#bfe6bf" /><stop offset="100%" stop-color="#8fd18f" />
+        </radialGradient>
+      </defs>
+      <circle cx="${CENTER}" cy="${CENTER}" r="${FIELD_RADIUS}" fill="url(#grassGrad)" stroke="#2d4a2d" stroke-width="4" />
+      ${tufts}
+      <circle cx="${CENTER}" cy="${CENTER}" r="${PATH_RADIUS}" fill="none"
+        stroke="#c2a26a" stroke-width="${PATH_WIDTH}" stroke-dasharray="10 8" opacity="0.9" />
+      <circle cx="${CENTER}" cy="${CENTER}" r="${FIELD_RADIUS}" fill="none" stroke="#2d4a2d" stroke-width="4" />
+    </svg>`;
+})();
+
+function fitFieldToScreen() {
+  const wrap = document.getElementById('field-wrap');
+  const box = document.getElementById('field-box');
+  if (!wrap || !box) return;
+  const scale = Math.min(wrap.clientWidth, 520) / 520;
+  box.style.transform = `scale(${scale})`;
+  wrap.style.height = `${520 * scale}px`;
+}
+window.addEventListener('resize', fitFieldToScreen);
+
+// ====================================================================
+//  SESSION STATE
+// ====================================================================
+const S = {
+  participantId: 'anon',
+  sessionId: Math.random().toString(36).slice(2, 10),
+  sessionStartIso: new Date().toISOString(),
+  nBlocks: DEFAULT_N_BLOCKS,
+  trialsPerBlock: DEFAULT_TRIALS_PER_BLOCK,
+  returnToCenter: false,
+  trapRounds: DEFAULT_TRAP_ROUNDS,
+  allowed: [...DIST_CHOICE_ORDER],
+  blocks: [],
+  blockIdx: 0,
+  globalTrial: 0,
+  state: 'setup', // setup | playing | trap | break | done
+};
+let T = null;          // current hunt trial
+let TR = null;         // current trap round
+let paused = false;
+let pauseStartedAt = 0;
+let busy = false;
+let jsPsych;
+// return-to-center state
+let armed = true;        // holding a bomb, allowed to throw
+let hoverPos = null;     // last pointer position in logical field coords
+let holdStart = null;    // when the current uninterrupted hold began
+
+function blk() { return S.blocks[S.blockIdx]; }
+
+// time since trial start, excluding time spent paused
+function activeElapsed(obj = T) {
+  const now = performance.now();
+  let p = obj.pausedMs;
+  if (paused) p += now - Math.max(pauseStartedAt, obj.start);
+  return now - obj.start - p;
+}
+// the object whose clock pauses apply to (hunt trial or trap round)
+function currentTimed() { return S.state === 'trap' ? TR : T; }
+
+// setTimeout that waits out any pause before firing
+function pTimeout(fn, ms) {
+  setTimeout(function check() {
+    if (paused) setTimeout(check, 100);
+    else fn();
+  }, ms);
+}
+
+// ====================================================================
+//  DATA: CSV + BACKUP
+// ====================================================================
+// One long-format schema for both tasks, so every file can be stacked.
+//  task = 'hunt' -> one row per bomb throw
+//  task = 'trap' -> one row per trap placed and one row per rabbit that popped up
+const CSV_HEADER = [
+  'participant_id', 'session_id', 'session_start_iso', 'task_version',
+  'n_blocks', 'trials_per_block', 'trap_rounds_per_block', 'return_to_center', 'center_hold_ms',
+  'hit_tolerance_deg', 'allowed_dist_types',
+  'block', 'block_complete', 'block_dist_type', 'block_dist_params', 'block_dist_peaks_deg',
+  'task',
+  // hunt columns
+  'trial_in_block', 'trial_global', 'trial_outcome', 'trial_total_attempts',
+  'trial_rt_ms', 'trial_n_pauses', 'trial_paused_ms', 'trial_end_iso',
+  'target_angle_deg',
+  'attempt', 'guess_angle_deg', 'hit', 'signed_error_to_target_deg', 'abs_error_to_target_deg',
+  'throw_time_ms', 'inter_throw_ms', 'armed_time_ms', 'return_time_ms', 'aim_time_ms',
+  // trap columns
+  'trap_round', 'trap_item_type', 'trap_item_index', 'trap_item_angle_deg',
+  'trap_place_time_ms', 'trap_rabbit_caught', 'trap_caught_by_trap_index', 'trap_nearest_trap_dist_deg',
+  'trap_round_caught', 'trap_round_trap_angles_deg', 'trap_round_place_ms',
+  'trap_round_n_pauses', 'trap_round_paused_ms', 'trap_round_end_iso',
+  // shared
+  'error_to_nearest_peak_deg', 'click_radius_px',
+];
+
+function csvEscape(val) {
+  const s = val === null || val === undefined ? '' : String(val);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+const f1 = (v) => (v === null || v === undefined ? '' : v.toFixed(1));
+const f2 = (v) => (v === null || v === undefined ? '' : v.toFixed(2));
+
+function baseRow(b) {
+  return {
+    participant_id: S.participantId, session_id: S.sessionId,
+    session_start_iso: S.sessionStartIso, task_version: TASK_VERSION,
+    n_blocks: S.nBlocks, trials_per_block: S.trialsPerBlock, trap_rounds_per_block: S.trapRounds,
+    return_to_center: S.returnToCenter ? 1 : 0,
+    center_hold_ms: S.returnToCenter ? CENTER_HOLD_MS : '',
+    hit_tolerance_deg: HIT_TOLERANCE_DEG, allowed_dist_types: S.allowed.join('|'),
+    block: b.index, block_complete: b.complete ? 1 : 0, block_dist_type: b.dist.type,
+    block_dist_params: JSON.stringify(b.dist),
+    block_dist_peaks_deg: b.peaks.map((p) => p.toFixed(2)).join('|'),
+  };
+}
+
+function rowsForBlock(b) {
+  const out = [];
+  b.trials.forEach((t) => {
+    t.guesses.forEach((g, i) => {
+      const prevT = i === 0 ? 0 : t.guesses[i - 1].tMs;
+      const hasArm = g.armedMs !== null && g.armedMs !== undefined;
+      out.push({
+        ...baseRow(b), task: 'hunt',
+        trial_in_block: t.trialInBlock, trial_global: t.trialGlobal, trial_outcome: t.outcome,
+        trial_total_attempts: t.attempts, trial_rt_ms: f1(t.rt), trial_n_pauses: t.nPauses,
+        trial_paused_ms: f1(t.pausedMs), trial_end_iso: t.endIso,
+        target_angle_deg: f2(t.targetAngle),
+        attempt: i + 1, guess_angle_deg: f2(g.angle), hit: g.hit ? 1 : 0,
+        signed_error_to_target_deg: f2(signedDiff(g.angle, t.targetAngle)),
+        abs_error_to_target_deg: f2(circularDist(g.angle, t.targetAngle)),
+        throw_time_ms: f1(g.tMs), inter_throw_ms: f1(g.tMs - prevT),
+        armed_time_ms: hasArm ? f1(g.armedMs) : '',
+        return_time_ms: hasArm ? f1(g.armedMs - prevT) : '',
+        aim_time_ms: hasArm ? f1(g.tMs - g.armedMs) : '',
+        error_to_nearest_peak_deg: f2(distanceToNearestPeak(g.angle, b.peaks)),
+        click_radius_px: f1(g.r),
+      });
+    });
+  });
+  b.trapRounds.forEach((r) => {
+    const common = {
+      ...baseRow(b), task: 'trap', trap_round: r.round,
+      trap_round_caught: r.caught,
+      trap_round_trap_angles_deg: r.traps.map((tp) => tp.angle.toFixed(2)).join(';'),
+      trap_round_place_ms: f1(r.rt), trap_round_n_pauses: r.nPauses,
+      trap_round_paused_ms: f1(r.pausedMs), trap_round_end_iso: r.endIso,
+    };
+    r.traps.forEach((tp, i) => out.push({
+      ...common, trap_item_type: 'trap', trap_item_index: i + 1,
+      trap_item_angle_deg: f2(tp.angle), trap_place_time_ms: f1(tp.tMs),
+      error_to_nearest_peak_deg: f2(distanceToNearestPeak(tp.angle, b.peaks)),
+      click_radius_px: f1(tp.r),
+    }));
+    r.rabbits.forEach((rb, i) => out.push({
+      ...common, trap_item_type: 'rabbit', trap_item_index: i + 1,
+      trap_item_angle_deg: f2(rb.angle), trap_rabbit_caught: rb.caught ? 1 : 0,
+      trap_caught_by_trap_index: rb.trapIndex === null ? '' : rb.trapIndex + 1,
+      trap_nearest_trap_dist_deg: f2(Math.min(...r.traps.map((tp) => circularDist(tp.angle, rb.angle)))),
+      error_to_nearest_peak_deg: f2(distanceToNearestPeak(rb.angle, b.peaks)),
+    }));
+  });
+  return out.map((o) => CSV_HEADER.map((h) => csvEscape(o[h])).join(','));
+}
+
+function buildCSV(blocks) {
+  const rows = [CSV_HEADER.join(',')];
+  blocks.forEach((b) => rows.push(...rowsForBlock(b)));
+  return rows.join('\n');
+}
+
+function safeName(s) { return String(s).replace(/[^A-Za-z0-9_-]/g, '_'); }
+
+function downloadText(text, filename) {
+  const blob = new Blob([text], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function filePrefix() {
+  return `rabbit_hunt_${safeName(S.participantId)}_${S.sessionId}`;
+}
+
+function saveBlock(b) {
+  if (b.trials.length === 0 && b.trapRounds.length === 0) return;
+  const pad = String(b.index).padStart(2, '0');
+  const tag = b.complete ? '' : '_partial';
+  downloadText(buildCSV([b]), `${filePrefix()}_block${pad}${tag}.csv`);
+  b.saved = true;
+  backupToLocalStorage();
+}
+
+function saveAll() {
+  const withData = S.blocks.filter((b) => b.trials.length > 0 || b.trapRounds.length > 0);
+  if (withData.length === 0) return;
+  downloadText(buildCSV(withData), `${filePrefix()}_ALL.csv`);
+}
+
+// Secondary safety net in case a download is blocked by the browser.
+function backupToLocalStorage() {
+  try {
+    localStorage.setItem(`rabbit_hunt_backup_${S.sessionId}`, buildCSV(S.blocks.filter((b) => b.trials.length > 0 || b.trapRounds.length > 0)));
+  } catch (e) { /* storage unavailable -- downloads remain the primary save */ }
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (S.state === 'playing' || S.state === 'break') { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ====================================================================
+//  TASK SCREEN
+// ====================================================================
+function renderTaskScreen() {
+  const display = jsPsych.getDisplayElement();
+  display.innerHTML = `
+    <h1 class="title">🌿 Bard the Gardener vs. The Hidden Rabbit 🐰</h1>
+    <div id="counter"></div>
+    <div id="progress-outer"><div id="progress-inner"></div></div>
+    <div id="scoreboard"></div>
+    <div id="rtc-status"></div>
+    <div id="field-wrap">
+      <div id="field-box">
+        ${FIELD_SVG}
+        ${S.returnToCenter ? `
+          <svg id="hold-svg" width="520" height="520">
+            <circle cx="${CENTER}" cy="${CENTER}" r="${CENTER_ZONE_R}" fill="rgba(60,40,10,0.18)"
+              stroke="#5a3d1a" stroke-width="2" stroke-dasharray="4 4" />
+            <circle id="hold-ring" cx="${CENTER}" cy="${CENTER}" r="${CENTER_ZONE_R + 5}" fill="none"
+              stroke="#ffd700" stroke-width="6"
+              stroke-dasharray="${2 * Math.PI * (CENTER_ZONE_R + 5)}"
+              stroke-dashoffset="${2 * Math.PI * (CENTER_ZONE_R + 5)}"
+              transform="rotate(-90 ${CENTER} ${CENTER})" />
+          </svg>
+          <div id="bomb-pile">💣💣\n💣💣💣</div>` : ''}
+        <div id="banner"></div>
+      </div>
+    </div>
+    ${controlsHtml()}
+  `;
+  fitFieldToScreen();
+  const box = document.getElementById('field-box');
+  lastRtcUi = '';
+  box.addEventListener('click', onFieldClick);
+  if (S.returnToCenter) {
+    // pointer events cover mouse hover and touch press-and-hold
+    box.style.touchAction = 'none';
+    const track = (evt) => { hoverPos = toLogical(evt); };
+    box.addEventListener('pointermove', track);
+    box.addEventListener('pointerdown', track);
+    box.addEventListener('pointerleave', () => { hoverPos = null; });
+    box.addEventListener('pointerup', (evt) => { if (evt.pointerType !== 'mouse') hoverPos = null; });
+    box.addEventListener('pointercancel', () => { hoverPos = null; });
+  }
+  wireControls();
+}
+
+// pause / end controls shared by the hunt and trap screens
+function controlsHtml() {
+  return `
+    <div class="btn-row">
+      <button id="pause-btn" class="pix-btn btn-blue">⏸ Pause (P)</button>
+      <button id="end-btn" class="pix-btn btn-red">🏁 End session</button>
+    </div>
+    <div id="pause-overlay">
+      <div class="story-box" style="text-align:center;">
+        <h2>⏸ Paused</h2>
+        <p>Take your time. The timer is stopped.</p>
+        <p style="font-size:9px; color:#9fd8a8;">Press P, Space or Esc &mdash; or the button &mdash; to resume.</p>
+        <button id="resume-btn" class="pix-btn btn-yellow" style="margin-top:10px;">▶ Resume</button>
+      </div>
+    </div>`;
+}
+function wireControls() {
+  document.getElementById('pause-btn').addEventListener('click', togglePause);
+  document.getElementById('resume-btn').addEventListener('click', togglePause);
+  document.getElementById('end-btn').addEventListener('click', onEndSession);
+  if (paused) document.getElementById('pause-overlay').classList.add('show');
+}
+
+function updateHUD() {
+  const b = blk();
+  const done = b.trials.length;
+  const current = Math.min(done + 1, S.trialsPerBlock);
+  document.getElementById('counter').textContent =
+    `Block ${b.index} / ${S.nBlocks}  ·  Trial ${current} / ${S.trialsPerBlock}`;
+  document.getElementById('progress-inner').style.width = `${(done / S.trialsPerBlock) * 100}%`;
+  const mean = done ? (b.trials.reduce((a, t) => a + t.attempts, 0) / done).toFixed(1) : '—';
+  document.getElementById('scoreboard').textContent =
+    `Bombs this trial: ${T ? T.guesses.length : 0}  |  Mean bombs per catch (this block): ${mean}`;
+}
+
+function startTrial() {
+  T = {
+    targetAngle: drawFromDist(blk().dist),
+    guesses: [],
+    start: performance.now(),
+    pausedMs: 0,
+    nPauses: paused ? 1 : 0,
+    armedMs: null,
+  };
+  armed = !S.returnToCenter;
+  holdStart = null;
+  updateHUD();
+}
+
+function toLogical(evt) {
+  const rect = document.getElementById('field-box').getBoundingClientRect();
+  const sf = rect.width / 520;
+  return { x: (evt.clientX - rect.left) / sf, y: (evt.clientY - rect.top) / sf };
+}
+
+// ---------- return-to-center loop ----------
+let lastRtcUi = '';
+function setRtcUi(mode) {
+  if (mode === lastRtcUi) return;
+  lastRtcUi = mode;
+  const status = document.getElementById('rtc-status');
+  const pile = document.getElementById('bomb-pile');
+  const box = document.getElementById('field-box');
+  if (!status || !pile || !box) return;
+  status.classList.toggle('ready', mode === 'ready');
+  pile.className = mode === 'ready' ? 'ready' : 'waiting';
+  box.style.cursor = mode === 'ready' ? 'crosshair' : 'default';
+  status.textContent =
+    mode === 'ready' ? '💣 Bomb in hand — click to throw!'
+    : mode === 'holding' ? 'Picking up a bomb… keep still'
+    : '⟲ Return to the bomb pile and hold briefly';
+}
+
+function rtcTick() {
+  requestAnimationFrame(rtcTick);
+  if (!S.returnToCenter || S.state !== 'playing') return;
+  const ring = document.getElementById('hold-ring');
+  if (!ring) return;
+  const circ = 2 * Math.PI * (CENTER_ZONE_R + 5);
+  const over = hoverPos && Math.hypot(hoverPos.x - CENTER, hoverPos.y - CENTER) <= CENTER_ZONE_R;
+  const eligible = T && !armed && !paused && !busy;
+  let frac = 0;
+  if (armed) {
+    frac = 1;
+  } else if (eligible && over) {
+    if (holdStart === null) holdStart = performance.now();
+    frac = Math.min(1, (performance.now() - holdStart) / CENTER_HOLD_MS);
+    if (frac >= 1) {
+      armed = true;
+      T.armedMs = activeElapsed();
+      holdStart = null;
+    }
+  } else {
+    holdStart = null;
+  }
+  ring.setAttribute('stroke-dashoffset', String(circ * (1 - frac)));
+  ring.setAttribute('stroke', armed ? '#7cff8a' : '#ffd700');
+  setRtcUi(armed ? 'ready' : holdStart !== null ? 'holding' : 'waiting');
+}
+requestAnimationFrame(rtcTick);
+
+function togglePause() {
+  if (S.state !== 'playing' && S.state !== 'trap') return;
+  const overlay = document.getElementById('pause-overlay');
+  const cur = currentTimed();
+  if (!paused) {
+    paused = true;
+    pauseStartedAt = performance.now();
+    if (cur) cur.nPauses++;
+    holdStart = null;
+    overlay.classList.add('show');
+  } else {
+    const now = performance.now();
+    if (cur) cur.pausedMs += now - Math.max(pauseStartedAt, cur.start);
+    paused = false;
+    overlay.classList.remove('show');
+  }
+}
+
+document.addEventListener('keydown', (evt) => {
+  if (S.state !== 'playing' && S.state !== 'trap') return;
+  if (evt.key === 'p' || evt.key === 'P' || evt.key === ' ' || evt.key === 'Escape') {
+    evt.preventDefault();
+    togglePause();
+  }
+});
+
+function showBanner(text) {
+  const el = document.getElementById('banner');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1400);
+}
+
+function showCallout(p, text, color, rise) {
+  const box = document.getElementById('field-box');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.className = 'callout-text';
+  el.textContent = text;
+  el.style.color = color;
+  el.style.left = `${p.x}px`;
+  el.style.top = `${p.y - 30}px`;
+  box.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.opacity = '0';
+    el.style.transform = `translate(-50%, -${60 + (rise || 0)}%)`;
+  });
+  setTimeout(() => el.remove(), 750);
+}
+
+function placeBombAndExplode(p, gotHit, cb) {
+  const box = document.getElementById('field-box');
+  busy = true;
+  const bomb = document.createElement('div');
+  bomb.className = 'bomb-icon';
+  bomb.textContent = '💣';
+  bomb.style.left = `${p.x}px`;
+  bomb.style.top = `${p.y}px`;
+  box.appendChild(bomb);
+  setTimeout(() => {
+    bomb.remove();
+    const boom = document.createElement('div');
+    boom.className = 'explosion-icon';
+    boom.textContent = gotHit ? '💥🐰' : '💥';
+    boom.style.left = `${p.x}px`;
+    boom.style.top = `${p.y}px`;
+    box.appendChild(boom);
+    setTimeout(() => { boom.remove(); busy = false; cb(); }, 500);
+  }, 280);
+}
+
+function onFieldClick(evt) {
+  if (S.state !== 'playing' || paused || busy || !T) return;
+  const { x, y } = toLogical(evt);
+  const r = Math.hypot(x - CENTER, y - CENTER);
+  if (r > FIELD_RADIUS) return;
+
+  if (S.returnToCenter) {
+    if (r <= CENTER_ZONE_R) return;          // clicking the pile itself isn't a throw
+    if (!armed) {
+      showBanner('Grab a bomb from the pile first! ⟲');
+      return;
+    }
+  }
+
+  const angle = xyToAngle(x, y);
+  const p = angleToXY(angle, PATH_RADIUS);
+  const gotHit = circularDist(angle, T.targetAngle) <= HIT_TOLERANCE_DEG;
+  T.guesses.push({
+    angle, hit: gotHit, tMs: activeElapsed(), r,
+    armedMs: S.returnToCenter ? T.armedMs : null,
+  });
+  if (S.returnToCenter) { armed = false; T.armedMs = null; holdStart = null; }
+  updateHUD();
+
+  placeBombAndExplode(p, gotHit, () => {
+    if (gotHit) {
+      showCallout(p, `Caught in ${T.guesses.length}! 🐰`, '#ffd700', 10);
+      finishTrial('caught');
+    } else {
+      showCallout(p, 'Missed!', '#ffffff', 0);
+    }
+  });
+}
+
+function finishTrial(outcome) {
+  const b = blk();
+  const rt = activeElapsed();
+  S.globalTrial++;
+  b.trials.push({
+    trialInBlock: b.trials.length + 1,
+    trialGlobal: S.globalTrial,
+    outcome,
+    targetAngle: T.targetAngle,
+    guesses: T.guesses,
+    attempts: T.guesses.length,
+    rt,
+    nPauses: T.nPauses,
+    pausedMs: T.pausedMs,
+    endIso: new Date().toISOString(),
+  });
+  T = null;
+
+  if (b.trials.length >= S.trialsPerBlock) {
+    updateHUD();
+    S.state = 'break';
+    busy = true;
+    setTimeout(() => {
+      busy = false;
+      if (S.trapRounds > 0) showTrapIntro(b);
+      else endBlock(b);
+    }, 900);
+  } else {
+    startTrial();
+  }
+}
+
+function onEndSession() {
+  if (S.state !== 'playing' && S.state !== 'trap') return;
+  const ok = window.confirm('End the session now? Data collected so far will be saved.');
+  if (!ok) return;
+  S.state = 'done';
+  paused = false;
+  document.body.style.backgroundColor = '';
+  const b = blk();
+  if ((b.trials.length > 0 || b.trapRounds.length > 0) && !b.saved) saveBlock(b);
+  showFinalScreen(true);
+}
+
+// whole block (hunt + trap phase) finished: save and move on
+function endBlock(b) {
+  b.complete = true;
+  document.body.style.backgroundColor = '';
+  saveBlock(b);
+  if (S.blockIdx + 1 >= S.nBlocks) showFinalScreen();
+  else showBlockScreen(b);
+}
+
+// ====================================================================
+//  BLOCK SCREENS
+// ====================================================================
+function showBlockScreen(finishedBlock) {
+  S.state = 'break';
+  const display = jsPsych.getDisplayElement();
+  const nextIdx = finishedBlock ? S.blockIdx + 1 : 0;
+  let body;
+  if (!finishedBlock) {
+    body = `
+      <h2>🌱 Block 1 of ${S.nBlocks}</h2>
+      <p>The rabbit has settled into its first garden. It has favorite hiding
+      spots &mdash; learn where they are to catch it with fewer bombs.</p>
+      <p>This block has <b>${S.trialsPerBlock}</b> rabbits to catch${S.trapRounds > 0
+        ? `, followed by <b>${S.trapRounds}</b> rounds of trap setting in the same garden` : ''}.</p>
+      ${rtcReminder()}`;
+  } else {
+    const n = finishedBlock.trials.length;
+    const mean = n ? (finishedBlock.trials.reduce((a, t) => a + t.attempts, 0) / n).toFixed(1) : '—';
+    const tr = finishedBlock.trapRounds;
+    const trapLine = tr.length
+      ? ` Your traps caught <b>${tr.reduce((a, r) => a + r.caught, 0)} / ${tr.length * N_TRAP_RABBITS}</b> rabbits.`
+      : '';
+    body = `
+      <h2>✅ Block ${finishedBlock.index} of ${S.nBlocks} complete!</h2>
+      <p>You averaged <b>${mean}</b> bombs per catch.${trapLine} Your data for this block has been saved.</p>
+      <p style="color:#ffd27a; margin-top:18px;">🔀 <b>The block is switching.</b></p>
+      <p>The rabbit has moved to a <b>new garden</b>, and its favorite hiding
+      spots are <b>different</b> now. What worked before may not work here.</p>
+      <p>Next up: <b>Block ${nextIdx + 1} of ${S.nBlocks}</b> (${S.trialsPerBlock} rabbits).
+      Take a break if you need one.</p>
+      ${rtcReminder()}`;
+  }
+  display.innerHTML = `
+    <div class="story-box" style="margin-top:40px; text-align:center;">
+      ${body}
+      <button id="continue-btn" class="pix-btn btn-yellow" style="margin-top:16px;">
+        ${finishedBlock ? 'Start next block' : 'Start block 1'}
+      </button>
+    </div>`;
+  document.getElementById('continue-btn').addEventListener('click', () => {
+    S.blockIdx = nextIdx;
+    S.state = 'playing';
+    paused = false;
+    renderTaskScreen();
+    startTrial();
+  });
+}
+
+
+function rtcReminder() {
+  return S.returnToCenter
+    ? `<p style="font-size:10px; color:#9fd8a8;">Remember: before every throw, rest your cursor on the
+       💣 pile in the middle of the garden for a moment to pick up a bomb.</p>`
+    : '';
+}
+
+// ====================================================================
+//  TRAP-SETTING PHASE (end of every block, same distribution)
+// ====================================================================
+function showTrapIntro(b) {
+  S.state = 'break';
+  const display = jsPsych.getDisplayElement();
+  display.innerHTML = `
+    <div class="story-box" style="margin-top:40px; text-align:center;">
+      <h2>🌙 Twilight in the same garden</h2>
+      <p>Nice hunting! Before moving on, night falls on <b>this same garden</b>.
+      The rabbits come out from the <b>same favorite spots</b> you've been learning.</p>
+      <p><b>☀️ Day:</b> click to set <b>${N_TRAPS} traps</b> along the path.<br>
+      <b>🌙 Twilight:</b> ${N_TRAP_RABBITS} rabbits pop up one by one. A rabbit next to an
+      unsprung trap is caught &mdash; each trap can catch only one rabbit.</p>
+      <p>You'll play <b>${S.trapRounds}</b> rounds. Try to catch as many as you can.</p>
+      <button id="trap-go" class="pix-btn btn-yellow" style="margin-top:12px;">Start setting traps</button>
+    </div>`;
+  document.getElementById('trap-go').addEventListener('click', () => {
+    S.state = 'trap';
+    paused = false;
+    renderTrapScreen();
+    startTrapRound();
+  });
+}
+
+function renderTrapScreen() {
+  const display = jsPsych.getDisplayElement();
+  display.innerHTML = `
+    <h1 class="title">🪤 Bard's Twilight Traps 🐇</h1>
+    <div id="counter"></div>
+    <div id="progress-outer"><div id="progress-inner"></div></div>
+    <div id="scoreboard"></div>
+    <div id="trap-tray"></div>
+    <div id="field-wrap">
+      <div id="field-box">
+        ${FIELD_SVG}
+        <div id="twilight-overlay"></div>
+        <div id="phase-banner">☀️ Day: set your traps</div>
+        <div id="banner"></div>
+      </div>
+    </div>
+    ${controlsHtml()}
+  `;
+  fitFieldToScreen();
+  document.getElementById('field-box').addEventListener('click', onTrapClick);
+  wireControls();
+}
+
+function updateTrapHUD() {
+  const b = blk();
+  const done = b.trapRounds.length;
+  document.getElementById('counter').textContent =
+    `Block ${b.index} / ${S.nBlocks}  ·  Trap round ${Math.min(done + 1, S.trapRounds)} / ${S.trapRounds}`;
+  document.getElementById('progress-inner').style.width = `${(done / S.trapRounds) * 100}%`;
+  const caught = b.trapRounds.reduce((a, r) => a + r.caught, 0);
+  document.getElementById('scoreboard').textContent =
+    `Traps placed: ${TR ? TR.traps.length : 0} / ${N_TRAPS}  |  Caught so far: ${caught} / ${done * N_TRAP_RABBITS}`;
+  let html = '';
+  for (let i = 0; i < N_TRAPS; i++) {
+    html += `<span class="trap-slot${TR && i < TR.traps.length ? ' placed' : ''}">🪤</span>`;
+  }
+  document.getElementById('trap-tray').innerHTML = html;
+}
+
+function setTwilight(on) {
+  const ov = document.getElementById('twilight-overlay');
+  const pb = document.getElementById('phase-banner');
+  if (!ov || !pb) return;
+  ov.classList.toggle('on', on);
+  pb.classList.toggle('night', on);
+  pb.textContent = on ? '🌙 Twilight: the rabbits come out…' : '☀️ Day: set your traps';
+  document.body.style.backgroundColor = on ? '#2a1a4a' : '';
+}
+
+function startTrapRound() {
+  TR = {
+    round: blk().trapRounds.length + 1,
+    traps: [],        // { angle, tMs, r, el, active }
+    rabbits: [],      // { angle, caught, trapIndex }
+    phase: 'day',
+    start: performance.now(),
+    pausedMs: 0,
+    nPauses: paused ? 1 : 0,
+  };
+  setTwilight(false);
+  document.getElementById('field-box').style.cursor = 'crosshair';
+  updateTrapHUD();
+}
+
+function onTrapClick(evt) {
+  if (S.state !== 'trap' || paused || !TR || TR.phase !== 'day') return;
+  const { x, y } = toLogical(evt);
+  const r = Math.hypot(x - CENTER, y - CENTER);
+  if (r > FIELD_RADIUS) return;
+  const angle = xyToAngle(x, y);
+  const p = angleToXY(angle, PATH_RADIUS);
+  const el = document.createElement('div');
+  el.className = 'trap-icon';
+  el.textContent = '🪤';
+  el.style.left = `${p.x}px`;
+  el.style.top = `${p.y}px`;
+  document.getElementById('field-box').appendChild(el);
+  TR.traps.push({ angle, tMs: activeElapsed(TR), r, el, active: true });
+  updateTrapHUD();
+  if (TR.traps.length === N_TRAPS) startTrapTwilight();
+}
+
+function startTrapTwilight() {
+  TR.phase = 'twilight';
+  TR.placeDoneMs = activeElapsed(TR);
+  document.getElementById('field-box').style.cursor = 'default';
+  setTwilight(true);
+  const angles = [];
+  for (let i = 0; i < N_TRAP_RABBITS; i++) angles.push(drawFromDist(blk().dist));
+  const round = TR;
+  pTimeout(() => popTrapRabbit(round, angles, 0), 700);
+}
+
+function popTrapRabbit(round, angles, idx) {
+  if (S.state !== 'trap' || TR !== round) return;   // session ended meanwhile
+  if (idx >= angles.length) { finishTrapRound(round); return; }
+  const box = document.getElementById('field-box');
+  const angle = angles[idx];
+  const p = angleToXY(angle, PATH_RADIUS);
+
+  // the nearest still-active trap within tolerance catches it, then springs
+  let best = null;
+  round.traps.forEach((t, i) => {
+    if (!t.active) return;
+    const d = circularDist(t.angle, angle);
+    if (d <= HIT_TOLERANCE_DEG && (!best || d < best.d)) best = { i, d };
+  });
+  round.rabbits.push({ angle, caught: !!best, trapIndex: best ? best.i : null });
+
+  const rabbitEl = document.createElement('div');
+  rabbitEl.className = 'rabbit-icon';
+  rabbitEl.textContent = '🐇';
+  rabbitEl.style.left = `${p.x}px`;
+  rabbitEl.style.top = `${p.y}px`;
+  box.appendChild(rabbitEl);
+
+  pTimeout(() => {
+    if (TR !== round) return;
+    if (best) {
+      const trap = round.traps[best.i];
+      trap.active = false;
+      rabbitEl.classList.add('caught');
+      trap.el.classList.add('sprung');
+      setTimeout(() => trap.el.remove(), 350);
+      showCallout(p, 'Caught!', '#f4c76b', 0);
+      setTimeout(() => { rabbitEl.textContent = '💫'; }, 350);
+    } else {
+      const poof = document.createElement('div');
+      poof.className = 'poof-icon';
+      poof.textContent = '💨';
+      poof.style.left = `${p.x}px`;
+      poof.style.top = `${p.y}px`;
+      box.appendChild(poof);
+      setTimeout(() => poof.remove(), 500);
+    }
+    pTimeout(() => {
+      rabbitEl.remove();
+      popTrapRabbit(round, angles, idx + 1);
+    }, 450);
+  }, 300);
+}
+
+function finishTrapRound(round) {
+  const b = blk();
+  const caught = round.rabbits.filter((rb) => rb.caught).length;
+  b.trapRounds.push({
+    round: round.round,
+    traps: round.traps.map((t) => ({ angle: t.angle, tMs: t.tMs, r: t.r })),
+    rabbits: round.rabbits,
+    caught,
+    rt: round.placeDoneMs,          // time to place all traps (pauses excluded)
+    nPauses: round.nPauses,
+    pausedMs: round.pausedMs,
+    endIso: new Date().toISOString(),
+  });
+  showBanner(`Caught ${caught} / ${N_TRAP_RABBITS} 🐇`);
+  updateTrapHUD();
+  pTimeout(() => {
+    if (TR !== round || S.state !== 'trap') return;
+    round.traps.forEach((t) => t.el.remove());
+    if (b.trapRounds.length >= S.trapRounds) {
+      TR = null;
+      S.state = 'break';
+      endBlock(b);
+    } else {
+      startTrapRound();
+    }
+  }, 1500);
+}
+
+// ====================================================================
+//  FINAL SCREEN + REPORT
+// ====================================================================
+function buildDistributionChart(dist, angles, barColor) {
+  const W = 330, H = 130, nBins = 24, binW = 360 / nBins;
+  const counts = new Array(nBins).fill(0);
+  angles.forEach((a) => { counts[Math.min(nBins - 1, Math.floor(a / binW))]++; });
+  const density = counts.map((c) => (angles.length ? c / (angles.length * binW) : 0));
+  const curve = [];
+  for (let x = 0; x <= 360; x += 2) curve.push({ x, d: marginalPDF(dist, x % 360) });
+  const maxS = Math.max(...density, ...curve.map((c) => c.d), 1e-6) * 1.15;
+  const bw = W / nBins;
+  const bars = density.map((d, i) => {
+    const h = (d / maxS) * H;
+    return `<rect x="${i * bw}" y="${H - h}" width="${bw - 1}" height="${h}" fill="${barColor}" opacity="0.75" />`;
+  }).join('');
+  const line = curve.map((c) => `${(c.x / 360) * W},${H - (c.d / maxS) * H}`).join(' ');
+  return `
+    <svg viewBox="0 0 ${W} ${H}" style="background:#0d2818; border:3px solid #000;">
+      ${bars}
+      <polyline points="${line}" fill="none" stroke="#ffd700" stroke-width="2" />
+    </svg>
+    <div style="display:flex; justify-content:space-between; font-size:7px; color:#b8e0b8; margin-top:2px;">
+      <span>0°</span><span>90°</span><span>180°</span><span>270°</span><span>360°</span>
+    </div>`;
+}
+
+function meanOf(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN; }
+function fmt(v) { return Number.isFinite(v) ? v.toFixed(1) : '—'; }
+
+function showFinalScreen(endedEarly) {
+  S.state = 'done';
+  const display = jsPsych.getDisplayElement();
+  const played = S.blocks.filter((b) => b.trials.length > 0);
+
+  if (played.length === 0) {
+    display.innerHTML = `
+      <div class="story-box" style="margin-top:60px; text-align:center;">
+        <h2>Session ended</h2><p>No trials were completed, so there is no data to save.</p>
+      </div>`;
+    return;
+  }
+
+  const k = 10;
+  const rows = played.map((b) => {
+    const att = b.trials.map((t) => t.attempts);
+    const firstErr = b.trials.map((t) => distanceToNearestPeak(t.guesses[0].angle, b.peaks));
+    return `<tr>
+      <td>${b.index}${b.complete ? '' : '*'}</td>
+      <td>${DIST_LABELS[b.dist.type]}</td>
+      <td>${b.trials.length}</td>
+      <td>${fmt(meanOf(att))}</td>
+      <td>${fmt(meanOf(att.slice(0, k)))}</td>
+      <td>${fmt(meanOf(att.slice(-k)))}</td>
+      <td>${fmt(meanOf(firstErr.slice(0, k)))}°</td>
+      <td>${fmt(meanOf(firstErr.slice(-k)))}°</td>
+      <td>${b.trapRounds.length
+        ? `${b.trapRounds.reduce((a, r) => a + r.caught, 0)} / ${b.trapRounds.length * N_TRAP_RABBITS}` : '—'}</td>
+      <td>${b.trapRounds.length
+        ? fmt(meanOf(b.trapRounds.flatMap((r) => r.traps.map((t) => distanceToNearestPeak(t.angle, b.peaks))))) + '°' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const charts = played.map((b) => `
+    <div class="chart-cell">
+      <p style="margin:4px 0;">Block ${b.index}: ${DIST_LABELS[b.dist.type]}</p>
+      ${buildDistributionChart(b.dist, b.trials.flatMap((t) => t.guesses.map((g) => g.angle)), '#e07b39')}
+      ${b.trapRounds.length ? `<p style="margin:8px 0 4px 0;">Traps (block ${b.index})</p>
+        ${buildDistributionChart(b.dist, b.trapRounds.flatMap((r) => r.traps.map((t) => t.angle)), '#9b7bd8')}` : ''}
+    </div>`).join('');
+
+  display.innerHTML = `
+    <div class="story-box" style="max-width:1100px; text-align:center;">
+      <h2>🐰 Session complete${endedEarly ? ' (ended early)' : ''}</h2>
+      <p>Thanks for hunting! A combined file with every block has been downloaded.</p>
+      <div style="overflow-x:auto;">
+        <table class="report">
+          <tr><th>Block</th><th>Distribution</th><th>Trials</th><th>Mean bombs</th>
+              <th>First ${k}</th><th>Last ${k}</th><th>1st-throw err (first ${k})</th><th>1st-throw err (last ${k})</th>
+              <th>Trap catches</th><th>Trap err to peak</th></tr>
+          ${rows}
+        </table>
+      </div>
+      ${played.some((b) => !b.complete) ? '<p style="font-size:8px;">* block ended early (partial)</p>' : ''}
+      <p style="font-size:10px; margin-top:16px;">Where the bombs (and traps) landed in each block</p>
+      <div class="chart-grid">${charts}</div>
+      <p style="font-size:8px; margin-top:8px;">orange bars = bomb-throw density &nbsp;|&nbsp; purple bars = trap density &nbsp;|&nbsp; yellow curve = true hiding-spot distribution</p>
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="dl-all" class="pix-btn btn-yellow">Download all data again</button>
+      </div>
+      <p style="font-size:8px; color:#9fd8a8; margin-top:10px;">Session ID: ${S.sessionId}</p>
+    </div>`;
+  document.getElementById('dl-all').addEventListener('click', saveAll);
+  backupToLocalStorage();
+  saveAll();
+}
+
+// ====================================================================
+//  SETUP (jsPsych)
+// ====================================================================
+jsPsych = initJsPsych({
+  on_finish: () => {
+    S.blocks = buildBlockSequence(S.nBlocks, S.allowed);
+    showBlockScreen(null);
+  },
+});
+
+const setupTrial = {
+  type: jsPsychHtmlKeyboardResponse,
+  choices: 'NO_KEYS',
+  stimulus: `
+    <div class="story-box">
+      <h2>🌿 Bard the Gardener vs. The Hidden Rabbit 🐰</h2>
+      <p>A rabbit is hiding somewhere along the path around the garden.
+      <b>Click</b> anywhere to throw a bomb in that direction and find out if you got it.</p>
+      <p>The rabbit has favorite hiding spots you'll only learn over time. Catch it in as
+      few bombs as possible &mdash; then a new rabbit appears.</p>
+      <p>The game is split into <b>blocks</b>. At the start of each block the rabbit moves
+      to a new garden with <b>new</b> favorite spots. At the end of each block you'll
+      also set traps for the rabbits in that same garden. You can <b>pause</b> any time
+      with P, Space, Esc or the pause button.</p>
+
+      <p style="font-weight:bold; margin-top:18px; margin-bottom:4px; color:#ffd700;">Experiment settings</p>
+      <div class="setup-row">
+        <label for="pid">Participant ID</label>
+        <input type="text" id="pid" placeholder="e.g. P01" autocomplete="off">
+      </div>
+      <div class="setup-row">
+        <label for="nblocks">Blocks</label>
+        <input type="number" id="nblocks" min="1" max="50" value="${DEFAULT_N_BLOCKS}">
+        <label for="ntrials">Trials per block</label>
+        <input type="number" id="ntrials" min="1" max="500" value="${DEFAULT_TRIALS_PER_BLOCK}">
+      </div>
+      <div class="setup-row">
+        <label for="ntraps">Trap rounds after each block (0 = off)</label>
+        <input type="number" id="ntraps" min="0" max="50" value="${DEFAULT_TRAP_ROUNDS}">
+      </div>
+
+      <p style="font-size:9px; margin-top:14px; margin-bottom:6px; color:#ffd700;">
+        Distribution families to draw blocks from (one random family per block):
+      </p>
+      <div style="display:flex; flex-wrap:wrap; gap:14px; font-size:9px;">
+        ${DIST_CHOICE_ORDER.map((key) => `
+          <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+            <input type="checkbox" class="dist-choice" value="${key}" checked> ${DIST_LABELS[key]}
+          </label>`).join('')}
+      </div>
+
+      <label class="setup-row" style="cursor:pointer;">
+        <input type="checkbox" id="return-center">
+        Return to center (before every throw, hold the cursor on the bomb pile in the
+        middle for ${CENTER_HOLD_MS} ms)
+      </label>
+
+      <p id="setup-error" class="err"></p>
+      <button id="start-btn" class="pix-btn btn-yellow" style="margin-top:16px;">Start</button>
+    </div>`,
+  on_load: () => {
+    document.getElementById('start-btn').addEventListener('click', () => {
+      const err = document.getElementById('setup-error');
+      const allowed = Array.from(document.querySelectorAll('.dist-choice:checked')).map((el) => el.value);
+      const nBlocks = parseInt(document.getElementById('nblocks').value, 10);
+      const nTrials = parseInt(document.getElementById('ntrials').value, 10);
+      const nTraps = parseInt(document.getElementById('ntraps').value, 10);
+      const show = (msg) => { err.textContent = msg; err.style.display = 'block'; };
+      if (allowed.length === 0) return show('Select at least one distribution family.');
+      if (!(nBlocks >= 1)) return show('Number of blocks must be at least 1.');
+      if (!(nTrials >= 1)) return show('Trials per block must be at least 1.');
+      if (!(nTraps >= 0)) return show('Trap rounds must be 0 or more.');
+      S.participantId = document.getElementById('pid').value.trim() || 'anon';
+      S.allowed = allowed;
+      S.nBlocks = nBlocks;
+      S.trialsPerBlock = nTrials;
+      S.trapRounds = nTraps;
+      S.returnToCenter = document.getElementById('return-center').checked;
+      S.sessionStartIso = new Date().toISOString();
+      jsPsych.finishTrial({
+        participant_id: S.participantId, n_blocks: nBlocks, trials_per_block: nTrials,
+        allowed_dist_types: allowed, trap_rounds: nTraps, return_to_center: S.returnToCenter,
+      });
+    });
+  },
+};
+
+jsPsych.run([setupTrial]);
+
+</script>
+</html>
